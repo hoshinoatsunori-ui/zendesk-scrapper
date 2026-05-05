@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zendesk チケット検索</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    background: #f5f6fa;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: #1c3a6e;
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  }
+  header h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
+  .db-count { font-size: 12px; opacity: .7; }
+
+  /* ── Search form ── */
+  .search-wrap {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    max-width: 700px;
+  }
+  .search-wrap input[type=search] {
+    flex: 1;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: none;
+    font-size: 14px;
+    outline: none;
+  }
+  .search-wrap button {
+    padding: 8px 18px;
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .search-wrap button:hover { background: #2563eb; }
+
+  /* ── Main layout ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px; }
+
+  /* ── Tab filter ── */
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .tab-bar .label { font-size: 12px; color: #666; margin-right: 4px; }
+  .tab-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    color: #334155;
+    transition: background .15s, color .15s;
+  }
+  .tab-btn:hover { background: #e2e8f0; }
+  .tab-btn.active { background: #1c3a6e; color: #fff; border-color: #1c3a6e; }
+
+  /* ── Result meta ── */
+  .result-meta {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 12px;
+  }
+  .result-meta strong { color: #1a1a2e; }
+
+  /* ── Table ── */
+  .ticket-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .ticket-table thead th {
+    background: #f1f5f9;
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .ticket-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .1s;
+  }
+  .ticket-table tbody tr:last-child { border-bottom: none; }
+  .ticket-table tbody tr:hover { background: #f8fafc; }
+  .ticket-table td { padding: 10px 14px; vertical-align: top; }
+
+  .td-id { white-space: nowrap; width: 70px; color: #64748b; font-size: 12px; }
+  .td-subject a {
+    text-decoration: none;
+    color: #1c3a6e;
+    font-weight: 500;
+  }
+  .td-subject a:hover { text-decoration: underline; }
+  .snippet {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .snippet mark { background: #fef08a; color: #1a1a2e; border-radius: 2px; padding: 0 2px; }
+  .td-status { white-space: nowrap; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-open    { background: #dcfce7; color: #166534; }
+  .badge-closed  { background: #f1f5f9; color: #64748b; }
+  .badge-pending { background: #fef9c3; color: #854d0e; }
+  .badge-default { background: #e0e7ff; color: #3730a3; }
+  .td-tab { white-space: nowrap; font-size: 12px; color: #94a3b8; }
+  .td-date { white-space: nowrap; font-size: 12px; color: #94a3b8; }
+
+  /* ── Pagination ── */
+  .pagination {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .pagination a, .pagination span {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    font-size: 13px;
+    text-decoration: none;
+    color: #334155;
+    background: #fff;
+  }
+  .pagination a:hover { background: #e2e8f0; }
+  .pagination .current { background: #1c3a6e; color: #fff; border-color: #1c3a6e; }
+  .pagination .disabled { color: #cbd5e1; pointer-events: none; }
+
+  /* ── Broken ticket row ── */
+  tr.row-broken { opacity: .5; }
+  .snippet-error { color: #ef4444; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Zendesk チケット</h1>
+  <form class="search-wrap" method="get" action="/">
+    <input type="search" name="q" value="{{ q }}" placeholder="チケット内容を検索..." autocomplete="off">
+    {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+    <button type="submit">検索</button>
+  </form>
+  <span class="db-count">{{ total }} 件保存済み</span>
+</header>
+
+<div class="container">
+
+  <!-- Tab filter -->
+  <div class="tab-bar">
+    <span class="label">種別:</span>
+    <a href="/?q={{ q }}&status={{ status_filter }}" class="tab-btn {% if not tab %}active{% endif %}">すべて</a>
+    <a href="/?q={{ q }}&tab=my-requests&status={{ status_filter }}" class="tab-btn {% if tab=='my-requests' %}active{% endif %}">自分のリクエスト</a>
+    <a href="/?q={{ q }}&tab=ccd-requests&status={{ status_filter }}" class="tab-btn {% if tab=='ccd-requests' %}active{% endif %}">CCに入っているリクエスト</a>
+  </div>
+
+  <!-- Status filter -->
+  {% if all_statuses %}
+  <div class="tab-bar">
+    <span class="label">ステータス:</span>
+    <a href="/?q={{ q }}&tab={{ tab }}" class="tab-btn {% if not status_filter %}active{% endif %}">すべて</a>
+    {% for s in all_statuses %}
+    <a href="/?q={{ q }}&tab={{ tab }}&status={{ s | urlencode }}" class="tab-btn {% if status_filter == s %}active{% endif %}">{{ s }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Result count -->
+  <div class="result-meta">
+    {% if q %}
+      「<strong>{{ q }}</strong>」の検索結果: <strong>{{ result_count }}</strong> 件
+    {% else %}
+      <strong>{{ result_count }}</strong> 件のチケット
+    {% endif %}
+    {% if total_pages > 1 %}（ページ {{ page }} / {{ total_pages }}）{% endif %}
+  </div>
+
+  <!-- Ticket list -->
+  {% if tickets %}
+  <table class="ticket-table">
+    <thead>
+      <tr>
+        <th class="td-id">#</th>
+        <th>件名</th>
+        <th>ステータス</th>
+        <th>種別</th>
+        <th>更新日時</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tickets %}
+      {% set is_broken = (t.subject in ('リクエスト', 'Requests', 'My activities')) %}
+      <tr class="{% if is_broken %}row-broken{% endif %}">
+        <td class="td-id">{{ t.ticket_id }}</td>
+        <td class="td-subject">
+          <a href="/ticket/{{ t.ticket_id }}">{{ t.subject or '(無題)' }}</a>
+          {% if is_broken %}
+          <div class="snippet snippet-error">⚠ 取得失敗（アクセス不可）</div>
+          {% elif t.snip %}
+          <div class="snippet">{{ t.snip | safe }}</div>
+          {% endif %}
+        </td>
+        <td class="td-status">
+          {% set s = (t.status or '') | lower %}
+          {% if 'open' in s or 'オープン' in s %}
+            <span class="badge badge-open">{{ t.status }}</span>
+          {% elif 'closed' in s or 'クローズ' in s or '解決' in s %}
+            <span class="badge badge-closed">{{ t.status }}</span>
+          {% elif 'pending' in s or '保留' in s or '回答済み' in s %}
+            <span class="badge badge-pending">{{ t.status }}</span>
+          {% else %}
+            <span class="badge badge-default">{{ t.status or '—' }}</span>
+          {% endif %}
+        </td>
+        <td class="td-tab">
+          {% if t.tab == 'my-requests' %}自分{% elif t.tab == 'ccd-requests' %}CC{% else %}—{% endif %}
+        </td>
+        <td class="td-date">{{ t.zd_updated | clean_date }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Pagination -->
+  {% if total_pages > 1 %}
+  <div class="pagination">
+    {% if page > 1 %}
+      <a href="?q={{ q }}&tab={{ tab }}&status={{ status_filter }}&page={{ page - 1 }}">« 前へ</a>
+    {% else %}
+      <span class="disabled">« 前へ</span>
+    {% endif %}
+
+    {% for p in range([1, page - 3] | max, [total_pages + 1, page + 4] | min) %}
+      {% if p == page %}
+        <span class="current">{{ p }}</span>
+      {% else %}
+        <a href="?q={{ q }}&tab={{ tab }}&status={{ status_filter }}&page={{ p }}">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+      <a href="?q={{ q }}&tab={{ tab }}&status={{ status_filter }}&page={{ page + 1 }}">次へ »</a>
+    {% else %}
+      <span class="disabled">次へ »</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <div class="icon">🔍</div>
+    <p>
+      {% if q %}「{{ q }}」に一致するチケットが見つかりませんでした。{% else %}チケットがありません。scraper.py を実行してください。{% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

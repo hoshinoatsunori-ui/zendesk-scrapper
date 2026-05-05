@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>#{{ ticket_id }} — {{ meta.subject }}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    background: #f5f6fa;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: #1c3a6e;
+    color: #fff;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header a.back {
+    color: #93c5fd;
+    text-decoration: none;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  header a.back:hover { text-decoration: underline; }
+  header h1 { font-size: 16px; font-weight: 600; }
+
+  /* ── Container ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px; }
+
+  /* ── Metadata card ── */
+  .meta-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .meta-card h2 {
+    width: 100%;
+    font-size: 18px;
+    margin-bottom: 4px;
+    word-break: break-all;
+  }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
+  .meta-value { font-size: 13px; color: #334155; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-open    { background: #dcfce7; color: #166534; }
+  .badge-closed  { background: #f1f5f9; color: #64748b; }
+  .badge-pending { background: #fef9c3; color: #854d0e; }
+  .badge-default { background: #e0e7ff; color: #3730a3; }
+
+  .zendesk-link {
+    font-size: 12px;
+    color: #3b82f6;
+    text-decoration: none;
+  }
+  .zendesk-link:hover { text-decoration: underline; }
+
+  /* ── Summary ── */
+  .summary-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .summary-card h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #475569;
+  }
+  .summary-body { font-size: 13px; line-height: 1.7; color: #334155; }
+  .summary-body h2 { font-size: 15px; font-weight: 700; margin: 14px 0 6px; color: #1c3a6e; }
+  .summary-body h3 { font-size: 13px; font-weight: 700; margin: 10px 0 4px; color: #334155; }
+  .summary-body p  { margin: 4px 0 8px; }
+  .summary-body ul, .summary-body ol { margin: 4px 0 8px 20px; }
+  .summary-body li { margin-bottom: 3px; }
+  .summary-body strong { font-weight: 700; }
+  .summary-body code {
+    background: #f1f5f9; border-radius: 3px; padding: 1px 5px;
+    font-family: monospace; font-size: 12px;
+  }
+
+  /* ── Attachments ── */
+  .attachments-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .attachments-card h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #475569;
+  }
+  .attachment-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f8fafc;
+    text-decoration: none;
+    color: #1c3a6e;
+    font-size: 13px;
+    transition: background .1s;
+  }
+  .attachment-item:hover { background: #e2e8f0; }
+  .attachment-icon { font-size: 16px; }
+  .attachment-size { font-size: 11px; color: #94a3b8; }
+
+  /* ── Content frame ── */
+  .content-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .content-card .card-header {
+    padding: 10px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .content-card .card-header span {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+  }
+  .content-card .card-header a {
+    font-size: 12px;
+    color: #3b82f6;
+    text-decoration: none;
+  }
+  .content-card .card-header a:hover { text-decoration: underline; }
+
+  iframe.ticket-frame {
+    width: 100%;
+    height: 80vh;
+    border: none;
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back" href="javascript:history.back()">← 戻る</a>
+  <h1>#{{ ticket_id }} — {{ meta.subject }}</h1>
+</header>
+
+<div class="container">
+
+  <!-- Metadata -->
+  <div class="meta-card">
+    <h2>{{ meta.subject }}</h2>
+
+    <div class="meta-item">
+      <span class="meta-label">チケット番号</span>
+      <span class="meta-value">#{{ ticket_id }}</span>
+    </div>
+
+    <div class="meta-item">
+      <span class="meta-label">ステータス</span>
+      <span class="meta-value">
+        {% set status_val = db_info.status or meta.status or '' %}
+        {% set s = status_val | lower %}
+        {% if 'open' in s or 'オープン' in s %}
+          <span class="badge badge-open">{{ status_val }}</span>
+        {% elif 'closed' in s or 'クローズ' in s or '解決' in s %}
+          <span class="badge badge-closed">{{ status_val }}</span>
+        {% elif 'pending' in s or '保留' in s or '回答済み' in s %}
+          <span class="badge badge-pending">{{ status_val }}</span>
+        {% else %}
+          <span class="badge badge-default">{{ status_val or '—' }}</span>
+        {% endif %}
+      </span>
+    </div>
+
+    <div class="meta-item">
+      <span class="meta-label">種別</span>
+      <span class="meta-value">
+        {% if db_info.tab == 'my-requests' %}自分のリクエスト
+        {% elif db_info.tab == 'ccd-requests' %}CCに入っているリクエスト
+        {% else %}—{% endif %}
+      </span>
+    </div>
+
+    <div class="meta-item">
+      <span class="meta-label">Zendesk 更新日時</span>
+      <span class="meta-value">{{ db_info.zd_updated | clean_date }}</span>
+    </div>
+
+    <div class="meta-item">
+      <span class="meta-label">最終ダウンロード</span>
+      <span class="meta-value">{{ meta.downloaded_at or '—' }}</span>
+    </div>
+
+    <div class="meta-item">
+      <span class="meta-label">Zendesk で開く</span>
+      <span class="meta-value">
+        <a class="zendesk-link" href="{{ meta.url }}" target="_blank" rel="noopener">
+          {{ meta.url }}
+        </a>
+      </span>
+    </div>
+
+    <div class="meta-item" style="margin-left:auto; align-self:center;">
+      <form method="post" action="/ticket/{{ ticket_id }}/reset"
+            onsubmit="return confirm('次回スクレイパー実行時に再取得フラグを立てます。よろしいですか？')">
+        <button type="submit" style="
+          padding:6px 14px; border-radius:6px; border:1px solid #e2e8f0;
+          background:#fff; color:#475569; font-size:13px; cursor:pointer;">
+          🔄 次回再取得
+        </button>
+      </form>
+      <span style="font-size:11px; color:#94a3b8; margin-top:3px;">
+        scraper.py 実行時に強制ダウンロード
+      </span>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  {% if summary_html %}
+  <div class="summary-card">
+    <h3>サマリー</h3>
+    <div class="summary-body">{{ summary_html | safe }}</div>
+  </div>
+  {% endif %}
+
+  <!-- Attachments -->
+  {% if attachments %}
+  <div class="attachments-card">
+    <h3>添付ファイル ({{ attachments | length }} 件)</h3>
+    <div class="attachment-list">
+      {% for att in attachments %}
+      <a class="attachment-item" href="/attachment/{{ ticket_id }}/{{ att.name }}" download>
+        <span class="attachment-icon">📎</span>
+        <span>{{ att.name }}</span>
+        <span class="attachment-size">{{ att.size }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Content iframe -->
+  <div class="content-card">
+    <div class="card-header">
+      <span>
+        チケット内容（保存済み HTML）
+        {% if comment_pages %}
+          <span style="font-weight:400; color:#94a3b8; font-size:11px; margin-left:8px;">
+            全 {{ comment_pages|length + 1 }} ページ
+          </span>
+        {% endif %}
+      </span>
+      <a id="open-tab-link" href="/ticket/{{ ticket_id }}/html" target="_blank">別タブで開く ↗</a>
+    </div>
+
+    {% if comment_pages %}
+    <div style="display:flex; gap:6px; padding:8px 12px; background:#f8fafc; border-bottom:1px solid #e2e8f0; flex-wrap:wrap;">
+      <button class="page-btn active" onclick="switchPage(1)" data-page="1">ページ 1</button>
+      {% for p in comment_pages %}
+      <button class="page-btn" onclick="switchPage({{ p }})" data-page="{{ p }}">ページ {{ p }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <iframe
+      id="ticket-frame"
+      class="ticket-frame"
+      src="/ticket/{{ ticket_id }}/html"
+      sandbox="allow-same-origin allow-scripts"
+      title="チケット #{{ ticket_id }} の内容"
+    ></iframe>
+  </div>
+
+<style>
+.page-btn {
+  padding: 4px 12px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  color: #334155;
+}
+.page-btn:hover  { background: #e2e8f0; }
+.page-btn.active { background: #1c3a6e; color: #fff; border-color: #1c3a6e; }
+</style>
+<script>
+function switchPage(num) {
+  const base  = '/ticket/{{ ticket_id }}/html';
+  const src   = num === 1 ? base : base + '/' + num;
+  document.getElementById('ticket-frame').src = src;
+  document.getElementById('open-tab-link').href = src;
+  document.querySelectorAll('.page-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.page) === num);
+  });
+}
+</script>
+
+</div>
+</body>
+</html>
